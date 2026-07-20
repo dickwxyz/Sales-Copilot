@@ -122,6 +122,7 @@ def build_analysis_prompt(
     user_input: str = "",
     chat_text: str = "",
     sop_text: str = "",
+    competitor_text: str = "",
     chat_history: str = "",
     previous_analysis: Optional[dict] = None,
     is_followup: bool = False,
@@ -163,6 +164,9 @@ def build_analysis_prompt(
 
     if sop_text:
         material_parts.append(f"【企业 SOP / 工作流】\n{sop_text}")
+
+    if competitor_text:
+        material_parts.append(f"【竞品信息 / 其他参考】\n{competitor_text}")
 
     if chat_history:
         material_parts.append(f"【历史聊天记录】\n{chat_history}")
@@ -269,6 +273,7 @@ def analyze(
     user_input: str = "",
     chat_text: str = "",
     sop_text: str = "",
+    competitor_text: str = "",
     chat_history: str = "",
     previous_analysis: Optional[dict] = None,
     is_followup: bool = False,
@@ -304,6 +309,7 @@ def analyze(
         user_input=user_input,
         chat_text=chat_text,
         sop_text=sop_text,
+        competitor_text=competitor_text,
         chat_history=chat_history,
         previous_analysis=previous_analysis,
         is_followup=is_followup,

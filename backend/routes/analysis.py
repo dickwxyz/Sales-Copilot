@@ -73,28 +73,64 @@ def _get_chat_history(record: AnalysisRecord, current_round: int) -> str:
 def create_analysis():
     user_id = get_jwt_identity()
 
-    customer_name = request.form.get("customer_name", "").strip()
-    customer_phone = request.form.get("customer_phone", "").strip()
     notes = request.form.get("notes", "").strip()
-    file = request.files.get("file")
+
+    # 多个文件上传
+    chat_file = request.files.get("chat_file")
+    sop_file = request.files.get("sop_file")
+    competitor_file = request.files.get("competitor_file")
 
     chat_text = ""
-    if file and file.filename:
-        save_path = _save_upload(file, current_app.config["UPLOAD_FOLDER"])
+    if chat_file and chat_file.filename:
+        save_path = _save_upload(chat_file, current_app.config["UPLOAD_FOLDER"])
         chat_text = extract_text(save_path)
-        # 清理临时文件
         try:
             os.remove(save_path)
         except OSError:
             pass
 
-    # AI 分析
-    sop_text = _get_user_sop_text(user_id)
-    result = ai_analyze(user_input=notes, chat_text=chat_text, sop_text=sop_text)
+    competitor_text = ""
+    if competitor_file and competitor_file.filename:
+        save_path = _save_upload(competitor_file, current_app.config["UPLOAD_FOLDER"])
+        competitor_text = extract_text(save_path)
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+
+    # SOP 文本：优先用上传的，其次从数据库拉
+    sop_text = ""
+    if sop_file and sop_file.filename:
+        save_path = _save_upload(sop_file, current_app.config["UPLOAD_FOLDER"])
+        sop_text = extract_text(save_path)
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+    else:
+        sop_text = _get_user_sop_text(user_id)
+
+    # 合并参考文件
+    competitor_text = (competitor_text or "")
+
+    # AI 分析：notes 可能是 JSON，也可能是纯文本
+    user_input = notes
+    try:
+        parsed_notes = json.loads(notes)
+        if isinstance(parsed_notes, dict):
+            user_input = json.dumps(parsed_notes, ensure_ascii=False)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    result = ai_analyze(
+        user_input=user_input,
+        chat_text=chat_text,
+        sop_text=sop_text,
+        competitor_text=competitor_text,
+    )
 
     # 自动提取客户姓名
-    if not customer_name:
-        customer_name = _extract_customer_name(chat_text, notes)
+    customer_name = _extract_customer_name(chat_text, notes)
 
     # 创建记录
     record_id = str(uuid.uuid4())
@@ -102,7 +138,6 @@ def create_analysis():
         id=record_id,
         user_id=user_id,
         customer_name=customer_name,
-        customer_phone=customer_phone,
         notes=notes,
         current_stage=result.get("stage", ""),
         stage_reason=result.get("stage_reason", ""),
