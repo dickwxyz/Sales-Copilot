@@ -26,7 +26,7 @@ export default function App() {
         <Route path="/analysis" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
         <Route path="/analysis/:id" element={<ProtectedRoute><AnalysisResult /></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-        <Route path="/guide" element={<ProtectedRoute><Guide /></ProtectedRoute>} />
+        <Route path="/guide" element={<Guide />} />
       </Routes>
     </BrowserRouter>
   )

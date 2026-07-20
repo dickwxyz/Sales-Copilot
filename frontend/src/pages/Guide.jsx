@@ -1,4 +1,5 @@
-import { Download, ClipboardCheck, FileText, Star, MessageSquare } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Download, ClipboardCheck, FileText, Star, MessageSquare, ArrowLeft } from 'lucide-react'
 
 const TEST_FILES = [
   {
@@ -17,10 +18,25 @@ const TEST_FILES = [
 
 export default function Guide() {
   return (
-    <div className="space-y-6 pb-20">
+    <div className="min-h-screen bg-gray-50">
+      {/* 简易导航 */}
+      <header className="bg-white border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link to="/" className="text-lg font-bold text-blue-600 tracking-tight">AI销冠助手</Link>
+          <Link to={localStorage.getItem('token') ? '/analysis' : '/login'}
+            className="text-sm px-4 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition">
+            {localStorage.getItem('token') ? '进入工作台' : '登录'}
+          </Link>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-20">
 
       {/* 页头 */}
       <div>
+        <Link to="/" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition mb-3">
+          <ArrowLeft size={14} /> 返回首页
+        </Link>
         <h1 className="text-xl font-bold text-gray-800">使用指南</h1>
         <p className="text-sm text-gray-400 mt-1">供评委/销售测试使用</p>
       </div>
@@ -147,6 +163,7 @@ export default function Guide() {
         </div>
       </section>
 
+      </div>{/* end max-w-4xl */}
     </div>
   )
 }
