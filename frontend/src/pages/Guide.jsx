@@ -8,10 +8,10 @@ const TEST_FILES = [
     path: '/api/uploads/悦芽湖亲子游泳馆帅帅1-JJ-成交10000.docx',
   },
   {
-    filename: '悦芽湖亲子游泳馆～～Mary-思岑SICEN-未成交.docx',
+    filename: '销售Mary-客户c-未成交.docx',
     label: '失败案例',
     desc: '未成交案例，可用于分析销售过程中存在的问题',
-    path: '/api/uploads/悦芽湖亲子游泳馆～～Mary-思岑SICEN-未成交.docx',
+    path: '/api/uploads/销售Mary-客户c-未成交.docx',
   },
 ]
 

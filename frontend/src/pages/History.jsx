@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { analysisApi } from '@/api/analysis'
-import { Plus, Search, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, User, BarChart3 } from 'lucide-react'
+import { evaluationsApi } from '@/api/evaluations'
+import { Plus, Search, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, User, BarChart3, Star } from 'lucide-react'
 
 const STAGE_COLORS = {
   '认知期': { bg: 'bg-blue-100', text: 'text-blue-800', dot: 'bg-blue-500' },
@@ -18,19 +19,23 @@ export default function History() {
   const [pages, setPages] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
-
   const [keyword, setKeyword] = useState('')
+  const [stats, setStats] = useState(null)
 
   const loadList = async (p) => {
     setLoading(true)
     try {
       const params = { page: p, per_page: 10 }
       if (keyword.trim()) params.keyword = keyword.trim()
-      const res = await analysisApi.list(params)
-      setRecords(res.records || [])
-      setTotal(res.total || 0)
-      setPages(res.pages || 0)
-      setPage(res.page || 1)
+      const [listRes, statsRes] = await Promise.all([
+        analysisApi.list(params),
+        evaluationsApi.stats(),
+      ])
+      setRecords(listRes.records || [])
+      setTotal(listRes.total || 0)
+      setPages(listRes.pages || 0)
+      setPage(listRes.page || 1)
+      setStats(statsRes)
     } catch {
       setRecords([])
     } finally {
@@ -61,6 +66,21 @@ export default function History() {
           <Plus size={16} /> 新分析
         </button>
       </div>
+
+      {/* 评价统计概览 */}
+      {stats && stats.total > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-3">
+            <Star size={14} className="text-amber-400" />
+            <span className="text-xs font-semibold text-gray-500">评价统计（共 {stats.total} 次）</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <StatItem label="准确度" avg={stats.accuracy?.avg || 0} dist={stats.accuracy?.distribution} />
+            <StatItem label="可用性" avg={stats.usability?.avg || 0} dist={stats.usability?.distribution} />
+            <StatItem label="洞察力" avg={stats.insight?.avg || 0} dist={stats.insight?.distribution} />
+          </div>
+        </div>
+      )}
 
       {/* 搜索栏 */}
       <form onSubmit={handleSearch} className="flex gap-2">
@@ -124,6 +144,26 @@ export default function History() {
   )
 }
 
+/* 统计卡片 */
+function StatItem({ label, avg, dist }) {
+  return (
+    <div className="text-center">
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <p className="text-xl font-bold text-gray-800">{avg.toFixed(1)}</p>
+      <div className="flex justify-center gap-1.5 mt-1">
+        {[1, 2, 3].map((k) => (
+          <div key={k} className="flex flex-col items-center">
+            <div className="w-4 bg-gray-100 rounded-t-sm" style={{ height: `${((dist?.[k] || 0) / Math.max(...Object.values(dist || {1:1}), 1)) * 16}px` }}>
+              <div className="w-full bg-blue-400 rounded-t-sm" style={{ height: `${((dist?.[k] || 0) / Math.max(...Object.values(dist || {1:1}), 1)) * 100}%` }} />
+            </div>
+            <span className="text-[10px] text-gray-400 mt-0.5">{dist?.[k] || 0}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* 单条记录卡片 */
 function RecordCard({ record, onClick }) {
   const stage = STAGE_COLORS[record.current_stage]
@@ -131,20 +171,17 @@ function RecordCard({ record, onClick }) {
   const profile = record.profile || {}
   const notesParsed = record.notes_parsed || {}
 
-  // 提取特征标签
   const tags = []
   const ageLabel = profile.age_group || notesParsed.ageGroup
-  if (ageLabel) tags.push({ label: ageLabel, icon: User, color: 'text-blue-600 bg-blue-50' })
+  if (ageLabel) tags.push({ label: ageLabel, color: 'text-blue-600 bg-blue-50' })
   const decisionLabel = profile.decision_maker || notesParsed.decisionMaker
-  if (decisionLabel) tags.push({ label: decisionLabel, icon: null, color: 'text-purple-600 bg-purple-50' })
+  if (decisionLabel) tags.push({ label: decisionLabel, color: 'text-purple-600 bg-purple-50' })
   const typeLabel = profile.edu_type || profile.subject || notesParsed.trainingType
-  if (typeLabel) tags.push({ label: typeLabel, icon: null, color: 'text-green-600 bg-green-50' })
+  if (typeLabel) tags.push({ label: typeLabel, color: 'text-green-600 bg-green-50' })
 
   return (
     <div onClick={onClick}
       className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-blue-200 hover:shadow-md transition cursor-pointer group">
-
-      {/* 顶部：客户名称 + 阶段 */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <h3 className="text-base font-bold text-gray-800 truncate">
@@ -165,20 +202,17 @@ function RecordCard({ record, onClick }) {
         </div>
       </div>
 
-      {/* 特征标签 */}
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
           {tags.map((t, i) => (
             <span key={i}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${t.color}`}>
-              {t.icon && <t.icon size={12} />}
               {t.label}
             </span>
           ))}
         </div>
       )}
 
-      {/* 底部提示 */}
       <div className="flex items-center gap-1.5 text-xs text-gray-400 group-hover:text-blue-500 transition">
         <BarChart3 size={13} />
         <span>查看分析详情</span>
