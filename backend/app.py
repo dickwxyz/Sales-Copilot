@@ -21,7 +21,10 @@ def create_app(config_name: str = "config.Config") -> Flask:
         from models.analysis import AnalysisRecord, AnalysisRound, RoundEvaluation  # noqa: F401
         from models.material import SOPFile, ChatRecordFile  # noqa: F401
 
-        db.create_all()
+        try:
+            db.create_all()
+        except Exception:
+            db.session.rollback()
 
     # 注册路由
     from routes.auth import auth_bp
