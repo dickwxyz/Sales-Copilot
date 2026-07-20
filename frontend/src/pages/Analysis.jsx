@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, FileText, X, MessageSquare, Send, Sparkles } from 'lucide-react'
+import { Upload, FileText, X, MessageSquare, Send, Sparkles, ShieldAlert } from 'lucide-react'
 import { analysisApi } from '@/api/analysis'
+import InjectionWarning, { checkInjection, isHighRisk } from '@/components/InjectionWarning'
 
 const AGE_GROUPS = [
   { value: '0-3', label: '0-3岁' },
@@ -75,6 +76,7 @@ export default function Analysis() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [injectionMatch, setInjectionMatch] = useState(null) // {detail, text} 阻断弹窗
 
   const handleFileChange = (e, setter) => {
     const file = e.target.files?.[0]
@@ -94,8 +96,19 @@ export default function Analysis() {
   const handleSubmit = async () => {
     setError('')
 
-    if (!chatFile && !customQuestion && !selectedQuestion) {
-      // 允许不填任何内容，但提示一下
+    // 前端注入检测
+    const combinedText = [
+      customQuestion || selectedQuestion ? (selectedQuestion || customQuestion) : '',
+      JSON.stringify({
+        ageGroup, decisionMaker, trainingType,
+        demandClarity, painPoint: painPoint === '其他' ? customPainPoint : painPoint,
+      }),
+    ].join(' ')
+
+    const matches = checkInjection(combinedText)
+    if (matches.length > 0) {
+      setInjectionMatch({ detail: matches.join('; '), text: combinedText })
+      return
     }
 
     setLoading(true)
@@ -299,6 +312,24 @@ export default function Analysis() {
         <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">{error}</p>
       )}
 
+      {/* 前端注入警告 - 非阻断提示 */}
+      {!injectionMatch && (() => {
+        const combinedText = [
+          customQuestion || selectedQuestion ? (selectedQuestion || customQuestion) : '',
+          JSON.stringify({ ageGroup, decisionMaker, trainingType, demandClarity }),
+        ].join(' ')
+        const warns = checkInjection(combinedText)
+        if (warns.length > 0) {
+          return (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <ShieldAlert size={16} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">输入内容包含敏感关键词，提交将被拦截</p>
+            </div>
+          )
+        }
+        return null
+      })()}
+
       {/* 提交按钮 */}
       <button
         onClick={handleSubmit}
@@ -307,6 +338,15 @@ export default function Analysis() {
       >
         {loading ? 'AI 分析中... 请稍候' : '开始分析'}
       </button>
+
+      {/* 阻断弹窗 */}
+      {injectionMatch && (
+        <InjectionWarning
+          type="modal"
+          detail={injectionMatch.detail}
+          onClose={() => setInjectionMatch(null)}
+        />
+      )}
     </div>
   )
 }

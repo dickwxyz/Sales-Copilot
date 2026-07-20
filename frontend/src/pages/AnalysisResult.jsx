@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { analysisApi } from '@/api/analysis'
 import { evaluationsApi } from '@/api/evaluations'
-import { ChevronLeft, RefreshCw, Upload, FileText, X, CheckCircle, AlertCircle, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react'
+import { ChevronLeft, RefreshCw, Upload, FileText, X, CheckCircle, AlertCircle, ChevronDown, ChevronUp, MessageSquare, ShieldAlert } from 'lucide-react'
+import InjectionWarning from '@/components/InjectionWarning'
 
 const STAGE_COLORS = {
   '认知期': { bg: 'bg-blue-100', text: 'text-blue-800', dot: 'bg-blue-500', label: '了解中' },
@@ -121,13 +122,7 @@ export default function AnalysisResult() {
 
       {/* 注入告警 */}
       {latestRound.injection_warning && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
-          <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-red-700">安全告警</p>
-            <p className="text-xs text-red-600 mt-0.5">输入中检测到提示注入关键词，已自动拦截未调用 AI 接口</p>
-          </div>
-        </div>
+        <InjectionWarning detail={latestRound.injection_detail} type="result" />
       )}
 
       {/* 最新分析结果 */}
