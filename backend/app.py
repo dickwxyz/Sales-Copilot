@@ -22,4 +22,15 @@ def create_app(config_name: str = "config.Config") -> Flask:
 
         db.create_all()
 
+    # 注册路由
+    from routes.auth import auth_bp
+    from routes.analysis import analysis_bp
+    from routes.materials import materials_bp
+    from routes.evaluations import evaluations_bp
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(analysis_bp)
+    app.register_blueprint(materials_bp)
+    app.register_blueprint(evaluations_bp)
+
     return app

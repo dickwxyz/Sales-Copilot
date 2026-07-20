@@ -114,10 +114,10 @@ class RoundEvaluation(db.Model):
     round_id = db.Column(db.String(36), db.ForeignKey("analysis_rounds.id"), nullable=False)
     user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
 
-    # 三维度评分（1-5分）
-    accuracy = db.Column(db.Integer, default=0)     # 准确度：阶段判定是否准确
-    usability = db.Column(db.Integer, default=0)     # 可用性：话术是否可直接使用
-    insight = db.Column(db.Integer, default=0)       # 洞察力：是否点出了自己没注意到的点
+    # 三维度评分（1=低, 2=中, 3=高）
+    accuracy = db.Column(db.Integer, default=0)      # 不准确 / 基本准确 / 非常准确
+    usability = db.Column(db.Integer, default=0)      # 无法使用 / 参考使用 / 可直接用
+    insight = db.Column(db.Integer, default=0)        # 较浅 / 有一些洞察 / 很有深度
 
     # 评价备注
     comment = db.Column(db.Text, default="")
