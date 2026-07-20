@@ -218,3 +218,6 @@ __marimo__/
 .streamlit/secrets.toml
 .DS_Store
 资料/
+/assets/
+backend/prompts/knowledgebase.txt
+backend/scripts/__pycache__/
