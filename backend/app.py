@@ -17,6 +17,8 @@ def create_app(config_name: str = "config.Config") -> Flask:
 
     with app.app_context():
         from models.user import User  # noqa: F401
+        from models.analysis import AnalysisRecord, AnalysisRound, RoundEvaluation  # noqa: F401
+        from models.material import SOPFile, ChatRecordFile  # noqa: F401
 
         db.create_all()
 
