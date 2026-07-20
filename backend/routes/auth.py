@@ -20,8 +20,8 @@ def register():
 
     if not phone or not password:
         return jsonify({"error": "手机号和密码不能为空"}), 400
-    if len(password) < 6:
-        return jsonify({"error": "密码至少6位"}), 400
+    if len(password) < 4:
+        return jsonify({"error": "密码至少4位"}), 400
 
     if User.query.filter_by(phone=phone).first():
         return jsonify({"error": "该手机号已注册"}), 409

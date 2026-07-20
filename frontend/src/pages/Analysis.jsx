@@ -58,7 +58,9 @@ export default function Analysis() {
 
   // ① 基础信息
   const [ageGroup, setAgeGroup] = useState('')
+  const [customAgeGroup, setCustomAgeGroup] = useState('')
   const [decisionMaker, setDecisionMaker] = useState('')
+  const [customDecisionMaker, setCustomDecisionMaker] = useState('')
   const [trainingType, setTrainingType] = useState('')
   const [customTrainingType, setCustomTrainingType] = useState('')
   const [demandClarity, setDemandClarity] = useState('')
@@ -117,12 +119,12 @@ export default function Analysis() {
 
       // 基础信息组装为 notes
       const notes = {
-        ageGroup,
-        decisionMaker,
+        ageGroup: ageGroup === '其他' ? customAgeGroup : ageGroup,
+        decisionMaker: decisionMaker === '其他' ? customDecisionMaker : decisionMaker,
         trainingType: trainingType === '其他' ? customTrainingType : trainingType,
         demandClarity,
         painPoint: painPoint === '其他' ? customPainPoint : painPoint,
-        question: selectedQuestion || customQuestion,
+        question: customQuestion,
       }
       fd.append('notes', JSON.stringify(notes))
 
@@ -155,8 +157,8 @@ export default function Analysis() {
           <div className="flex flex-wrap gap-2">
             {AGE_GROUPS.map((item) => (
               <button key={item.value} type="button"
-                onClick={() => setAgeGroup(item.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition border ${
+                onClick={() => { setAgeGroup(item.value); if (item.value !== '其他') setCustomAgeGroup('') }}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition border ${
                   ageGroup === item.value
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
@@ -164,6 +166,13 @@ export default function Analysis() {
               >{item.label}</button>
             ))}
           </div>
+          {ageGroup === '其他' && (
+            <input type="text" value={customAgeGroup}
+              onChange={(e) => setCustomAgeGroup(e.target.value)}
+              placeholder="请输入年龄段"
+              className="mt-2 w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-300 outline-none text-sm"
+            />
+          )}
         </div>
 
         {/* 决策人 */}
@@ -172,8 +181,8 @@ export default function Analysis() {
           <div className="flex flex-wrap gap-2">
             {DECISION_MAKERS.map((item) => (
               <button key={item.value} type="button"
-                onClick={() => setDecisionMaker(item.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition border ${
+                onClick={() => { setDecisionMaker(item.value); if (item.value !== '其他') setCustomDecisionMaker('') }}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition border ${
                   decisionMaker === item.value
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
@@ -181,6 +190,13 @@ export default function Analysis() {
               >{item.label}</button>
             ))}
           </div>
+          {decisionMaker === '其他' && (
+            <input type="text" value={customDecisionMaker}
+              onChange={(e) => setCustomDecisionMaker(e.target.value)}
+              placeholder="请输入决策人"
+              className="mt-2 w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-300 outline-none text-sm"
+            />
+          )}
         </div>
 
         {/* 培训类型 */}
@@ -231,10 +247,10 @@ export default function Analysis() {
             {PAIN_POINTS.map((item) => (
               <button key={item.value} type="button"
                 onClick={() => { setPainPoint(item.value); if (item.value !== '其他') setCustomPainPoint('') }}
-                className={`px-4 py-2 rounded-lg text-sm transition border ${
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition border ${
                   painPoint === item.value
-                    ? 'bg-orange-50 text-orange-700 border-orange-300'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-orange-200'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
                 }`}
               >{item.label}</button>
             ))}
@@ -243,7 +259,7 @@ export default function Analysis() {
             <input type="text" value={customPainPoint}
               onChange={(e) => setCustomPainPoint(e.target.value)}
               placeholder="请输入具体痛点"
-              className="mt-2 w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-orange-300 outline-none text-sm"
+              className="mt-2 w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-300 outline-none text-sm"
             />
           )}
         </div>
@@ -283,11 +299,17 @@ export default function Analysis() {
             const Icon = item.icon
             return (
               <button key={item.value} type="button"
-                onClick={() => { setSelectedQuestion(item.value); setCustomQuestion('') }}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition border ${
-                  selectedQuestion === item.value
-                    ? 'bg-purple-50 text-purple-700 border-purple-300'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-purple-200 hover:text-purple-600'
+                onClick={() => {
+                  if (customQuestion === item.label) {
+                    setCustomQuestion('')
+                  } else {
+                    setCustomQuestion(item.label)
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm transition border ${
+                  customQuestion === item.label
+                    ? 'bg-blue-600 text-white border-blue-600 font-semibold'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-blue-200 hover:text-blue-600'
                 }`}
               >
                 <Icon size={16} />
@@ -300,10 +322,10 @@ export default function Analysis() {
         {/* 文本框 */}
         <textarea
           value={customQuestion}
-          onChange={(e) => { setCustomQuestion(e.target.value); if (e.target.value) setSelectedQuestion('') }}
+          onChange={(e) => setCustomQuestion(e.target.value)}
           placeholder="选择上方示例或直接描述您的诉求"
           rows={3}
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-300 focus:ring-2 focus:ring-purple-50 outline-none text-sm resize-none"
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-50 outline-none text-sm resize-none"
         />
       </section>
 

@@ -47,6 +47,30 @@ def _extract_customer_name(text: str, notes: str = "") -> str:
     return ""
 
 
+def _extract_seller_name(text: str) -> str:
+    """从聊天记录第一行或常见前缀中提取销售员名称"""
+    import re
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        # 格式: "销售: XXX" 或 "销售员: XXX" 或 "我(Xxx):" 或 "张三:"
+        m = re.search(r"(?:销售|销售员|我)[：:]\s*(\S{2,4})", line)
+        if m:
+            name = m.group(1).strip()
+            if name not in ("你好", "您好"):
+                return name
+        # 聊天记录可能是 "Xxx: 内容" 格式，取第一个说话者
+    # 取第一行冒号前的名称
+    first_line = next((l.strip() for l in text.split("\n") if l.strip()), "")
+    m = re.match(r"^(\S{2,4})[：:]", first_line)
+    if m:
+        name = m.group(1).strip()
+        if name not in ("客户", "家长", "妈妈", "爸爸"):
+            return name
+    return ""
+
+
 def _get_user_sop_text(user_id: str) -> str:
     """获取用户的 SOP 文本汇总"""
     files = SOPFile.query.filter_by(user_id=user_id).all()
@@ -129,8 +153,10 @@ def create_analysis():
         competitor_text=competitor_text,
     )
 
-    # 自动提取客户姓名
-    customer_name = _extract_customer_name(chat_text, notes)
+    # 自动提取销售名称和客户姓名，格式: "销售名-客户名"
+    seller_name = _extract_seller_name(chat_text)
+    cust_name = _extract_customer_name(chat_text, notes)
+    customer_name = f"{seller_name}-{cust_name}" if seller_name and cust_name else cust_name or seller_name or ""
 
     # 创建记录
     record_id = str(uuid.uuid4())

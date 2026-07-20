@@ -48,13 +48,26 @@ class AnalysisRecord(db.Model):
         }
 
     def to_list_dict(self) -> dict:
-        """列表页轻量序列化，不含 rounds"""
+        """列表页轻量序列化，含 customer_profile 不含 rounds"""
+        profile = self._load_json(self.customer_profile)
+        notes_data = self._load_json(self.notes)
         return {
             "id": self.id,
             "customer_name": self.customer_name,
             "notes": self.notes,
             "current_stage": self.current_stage,
             "round_count": self.rounds.count(),
+            "profile": {
+                "age_group": profile.get("age_group", ""),
+                "decision_maker": profile.get("decision_maker", ""),
+                "edu_type": profile.get("edu_type", ""),
+                "subject": profile.get("subject", ""),
+            },
+            "notes_parsed": {
+                "ageGroup": notes_data.get("ageGroup", "") if isinstance(notes_data, dict) else "",
+                "decisionMaker": notes_data.get("decisionMaker", "") if isinstance(notes_data, dict) else "",
+                "trainingType": notes_data.get("trainingType", "") if isinstance(notes_data, dict) else "",
+            },
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
