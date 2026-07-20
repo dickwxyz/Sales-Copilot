@@ -94,9 +94,8 @@ export default function Analysis() {
   const handleSubmit = async () => {
     setError('')
 
-    if (!ageGroup || !decisionMaker || !trainingType || !demandClarity) {
-      setError('请填写基础信息中的必填项（年龄、决策人、培训类型、需求明确度）')
-      return
+    if (!chatFile && !customQuestion && !selectedQuestion) {
+      // 允许不填任何内容，但提示一下
     }
 
     setLoading(true)
@@ -135,7 +134,7 @@ export default function Analysis() {
       {/* ① 基础信息 */}
       <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <h3 className="text-sm font-semibold text-gray-800 mb-1">① 基础信息</h3>
-        <p className="text-xs text-gray-400 mb-4">填写客户已知信息，不确定可不填</p>
+        <p className="text-xs text-gray-400 mb-4">填写客户已知信息，不确定可不填。AI 会自动从聊天记录中提取并交叉验证</p>
 
         {/* 培训对象年龄 */}
         <div className="mb-4">
