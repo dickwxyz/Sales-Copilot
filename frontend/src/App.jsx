@@ -3,6 +3,7 @@ import Layout from '@/components/Layout'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import Analysis from '@/pages/Analysis'
+import AnalysisResult from '@/pages/AnalysisResult'
 import History from '@/pages/History'
 import Guide from '@/pages/Guide'
 
@@ -28,6 +29,7 @@ export default function App() {
         {/* 保护路由 */}
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/analysis" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
+        <Route path="/analysis/:id" element={<ProtectedRoute><AnalysisResult /></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><Guide /></ProtectedRoute>} />
       </Routes>
