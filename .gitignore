@@ -219,5 +219,6 @@ __marimo__/
 .DS_Store
 资料/
 /assets/
-backend/prompts/knowledgebase.txt
+# 编译产物，但会上传供生产使用
+# backend/prompts/knowledgebase.txt
 backend/scripts/__pycache__/
