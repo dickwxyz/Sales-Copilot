@@ -1,4 +1,5 @@
-from flask import Flask
+import os
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
@@ -32,5 +33,12 @@ def create_app(config_name: str = "config.Config") -> Flask:
     app.register_blueprint(analysis_bp)
     app.register_blueprint(materials_bp)
     app.register_blueprint(evaluations_bp)
+
+    # 上传文件静态访问
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploads")
+
+    @app.route("/api/uploads/<path:filename>")
+    def serve_upload(filename):
+        return send_from_directory(upload_dir, filename)
 
     return app

@@ -202,17 +202,22 @@ def create_analysis():
 def list_analysis():
     user_id = get_jwt_identity()
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 20, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
     per_page = min(per_page, 100)
+    keyword = request.args.get("keyword", "").strip()
 
-    query = AnalysisRecord.query.filter_by(user_id=user_id).order_by(
-        AnalysisRecord.updated_at.desc()
-    )
+    query = AnalysisRecord.query.filter_by(user_id=user_id)
+
+    if keyword:
+        query = query.filter(AnalysisRecord.customer_name.contains(keyword))
+
+    query = query.order_by(AnalysisRecord.updated_at.desc())
+
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     return jsonify(
         {
-            "records": [r.to_dict() for r in pagination.items],
+            "records": [r.to_list_dict() for r in pagination.items],
             "total": pagination.total,
             "page": pagination.page,
             "pages": pagination.pages,

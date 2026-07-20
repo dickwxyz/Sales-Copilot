@@ -47,6 +47,18 @@ class AnalysisRecord(db.Model):
             "round_count": self.rounds.count(),
         }
 
+    def to_list_dict(self) -> dict:
+        """列表页轻量序列化，不含 rounds"""
+        return {
+            "id": self.id,
+            "customer_name": self.customer_name,
+            "notes": self.notes,
+            "current_stage": self.current_stage,
+            "round_count": self.rounds.count(),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
     @staticmethod
     def _load_json(val, default=None):
         import json
