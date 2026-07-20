@@ -41,7 +41,19 @@ function useCopy() {
   const [copiedId, setCopiedId] = useState(null)
   const copy = async (text, id) => {
     try {
-      await navigator.clipboard.writeText(text)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        // HTTP fallback: 创建 textarea 元素复制
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 2000)
     } catch {}
@@ -227,8 +239,8 @@ function AnalysisContent({ round, evalOpen, setEvalOpen, onEvalSubmitted }) {
 
       <SectionCard icon={Lightbulb} title="策略建议" color="amber">
         <div className="space-y-2.5">
-          {strategy.advice && <StrategyBlock icon={ThumbsUp} label="建议" text={strategy.advice} color="blue" copiedId={copiedId} onCopy={copy} />}
-          {strategy.pitfall && <StrategyBlock icon={AlertTriangle} label="避坑" text={strategy.pitfall} color="red" copiedId={copiedId} onCopy={copy} />}
+          {strategy.advice && <StrategyBlock icon={ThumbsUp} label="建议" text={strategy.advice} color="blue" />}
+          {strategy.pitfall && <StrategyBlock icon={AlertTriangle} label="避坑" text={strategy.pitfall} color="red" />}
           {strategy.question && <StrategyBlock icon={MessageSquare} label="追问建议" text={strategy.question} color="green" copiedId={copiedId} onCopy={copy} />}
         </div>
       </SectionCard>
@@ -427,7 +439,8 @@ function StrategyBlock({ icon: Icon, label, text, color, copiedId, onCopy }) {
     green: { bg: 'bg-green-50', text: 'text-green-700', icon: 'text-green-400' },
   }
   const c = colors[color] || colors.blue
-  const id = `${label}_${text?.slice(0, 20)}`
+  const showCopy = label === '追问建议' && onCopy
+  const id = showCopy ? `${label}_${text?.slice(0, 20)}` : ''
   const isCopied = copiedId === id
 
   return (
@@ -436,11 +449,13 @@ function StrategyBlock({ icon: Icon, label, text, color, copiedId, onCopy }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className={`text-xs font-semibold ${c.text}`}>{label}</span>
-          <button onClick={() => onCopy(text, id)}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 shrink-0 transition">
-            {isCopied ? <CopyCheck size={12} className="text-green-500" /> : <Copy size={12} />}
-            {isCopied ? '√已复制' : '复制'}
-          </button>
+          {showCopy && (
+            <button onClick={() => onCopy(text, id)}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 shrink-0 transition">
+              {isCopied ? <CopyCheck size={12} className="text-green-500" /> : <Copy size={12} />}
+              {isCopied ? '√已复制' : '复制'}
+            </button>
+          )}
         </div>
         <p className="text-sm text-gray-700 mt-0.5">{text}</p>
       </div>
