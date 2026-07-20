@@ -12,7 +12,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models.analysis import AnalysisRecord, AnalysisRound
 from models.material import SOPFile
-from services.ai_service import analyze as ai_analyze
+from services.ai_service import analyze as ai_analyze, analyze_deal_summary, is_deal_summary_mode
 from utils.file_parser import extract_text, safe_filename
 
 logger = logging.getLogger(__name__)
@@ -137,6 +137,9 @@ def create_analysis():
     # 合并参考文件
     competitor_text = (competitor_text or "")
 
+    # 检测是否成交经验总结模式
+    deal_summary = is_deal_summary_mode(notes)
+
     # AI 分析：notes 可能是 JSON，也可能是纯文本
     user_input = notes
     try:
@@ -146,12 +149,20 @@ def create_analysis():
     except (json.JSONDecodeError, TypeError):
         pass
 
-    result = ai_analyze(
-        user_input=user_input,
-        chat_text=chat_text,
-        sop_text=sop_text,
-        competitor_text=competitor_text,
-    )
+    if deal_summary:
+        result = analyze_deal_summary(
+            user_input=user_input,
+            chat_text=chat_text,
+            sop_text=sop_text,
+            competitor_text=competitor_text,
+        )
+    else:
+        result = ai_analyze(
+            user_input=user_input,
+            chat_text=chat_text,
+            sop_text=sop_text,
+            competitor_text=competitor_text,
+        )
 
     # 自动提取销售名称和客户姓名，格式: "销售名-客户名"
     seller_name = _extract_seller_name(chat_text)
@@ -189,6 +200,28 @@ def create_analysis():
             ensure_ascii=False,
         ),
     )
+
+    # 如果是成交经验总结模式，存储不同字段
+    if deal_summary:
+        record.current_stage = "成交经验"
+        record.stage_reason = ""
+        record.customer_profile = json.dumps({}, ensure_ascii=False)
+        record.completeness = json.dumps({}, ensure_ascii=False)
+        record.strategy = json.dumps(
+            {
+                "analysis_mode": "deal_summary",
+                "summary": result.get("summary", ""),
+                "key_factors": result.get("key_factors", []),
+                "effective_techniques": result.get("effective_techniques", []),
+                "decision_triggers": result.get("decision_triggers", []),
+                "repeatable_patterns": result.get("repeatable_patterns", []),
+                "improvements": result.get("improvements", []),
+            },
+            ensure_ascii=False,
+        )
+        record.scripts = json.dumps({}, ensure_ascii=False)
+        record.stage_history = json.dumps([], ensure_ascii=False)
+
     db.session.add(record)
 
     round_obj = AnalysisRound(
@@ -214,6 +247,26 @@ def create_analysis():
         injection_detail=result.get("injection_detail", ""),
         raw_response=result.get("raw_response", ""),
     )
+
+    # 成交经验总结模式的 round 特殊存储
+    if deal_summary:
+        round_obj.stage = "成交经验"
+        round_obj.customer_profile = json.dumps({}, ensure_ascii=False)
+        round_obj.completeness = json.dumps({}, ensure_ascii=False)
+        round_obj.strategy = json.dumps(
+            {
+                "analysis_mode": "deal_summary",
+                "summary": result.get("summary", ""),
+                "key_factors": result.get("key_factors", []),
+                "effective_techniques": result.get("effective_techniques", []),
+                "decision_triggers": result.get("decision_triggers", []),
+                "repeatable_patterns": result.get("repeatable_patterns", []),
+                "improvements": result.get("improvements", []),
+            },
+            ensure_ascii=False,
+        )
+        round_obj.scripts = json.dumps({}, ensure_ascii=False)
+
     db.session.add(round_obj)
     db.session.commit()
 
@@ -302,25 +355,48 @@ def followup_analysis(record_id):
             "advice": AnalysisRecord._load_json(last_round.strategy, {}).get("advice", ""),
         }
 
+    # 判断是否继续成交经验总结模式
+    deal_summary = is_deal_summary_mode(user_input)
+    # 也检查上一轮是否已经是总结模式
+    if not deal_summary:
+        prev_strategy = AnalysisRecord._load_json(last_round.strategy, {}) if last_round else {}
+        deal_summary = prev_strategy.get("analysis_mode") == "deal_summary"
+
     # 聊天记录上下文
     chat_history = _get_chat_history(record, record.rounds.count() + 1)
 
     # AI 分析
     sop_text = _get_user_sop_text(user_id)
-    result = ai_analyze(
-        user_input=user_input,
-        chat_text=chat_text,
-        sop_text=sop_text,
-        chat_history=chat_history,
-        previous_analysis=previous_analysis,
-        is_followup=True,
-    )
 
-    # 阶段变更检测
+    if deal_summary:
+        # 构造 previous_analysis 给总结模式
+        prev_strategy = AnalysisRecord._load_json(last_round.strategy, {}) if last_round else {}
+        sum_previous = {
+            "summary": prev_strategy.get("summary", ""),
+        } if last_round else {}
+        result = analyze_deal_summary(
+            user_input=user_input,
+            chat_text=chat_text,
+            sop_text=sop_text,
+            chat_history=chat_history,
+            previous_analysis=sum_previous,
+            is_followup=True,
+        )
+    else:
+        result = ai_analyze(
+            user_input=user_input,
+            chat_text=chat_text,
+            sop_text=sop_text,
+            chat_history=chat_history,
+            previous_analysis=previous_analysis,
+            is_followup=True,
+        )
+
+    # 阶段变更检测（仅非总结模式）
     stage_history = AnalysisRecord._load_json(record.stage_history, [])
     prev_stage = stage_history[-1]["stage"] if stage_history else ""
     new_stage = result.get("stage", "")
-    if new_stage and new_stage != prev_stage:
+    if new_stage and new_stage != prev_stage and not deal_summary:
         stage_history.append(
             {
                 "stage": new_stage,
@@ -354,22 +430,60 @@ def followup_analysis(record_id):
         injection_detail=result.get("injection_detail", ""),
         raw_response=result.get("raw_response", ""),
     )
+
+    # 总结模式的 round 特殊存储
+    if deal_summary:
+        round_obj.stage = "成交经验"
+        round_obj.customer_profile = json.dumps({}, ensure_ascii=False)
+        round_obj.completeness = json.dumps({}, ensure_ascii=False)
+        round_obj.strategy = json.dumps(
+            {
+                "analysis_mode": "deal_summary",
+                "summary": result.get("summary", ""),
+                "key_factors": result.get("key_factors", []),
+                "effective_techniques": result.get("effective_techniques", []),
+                "decision_triggers": result.get("decision_triggers", []),
+                "repeatable_patterns": result.get("repeatable_patterns", []),
+                "improvements": result.get("improvements", []),
+            },
+            ensure_ascii=False,
+        )
+        round_obj.scripts = json.dumps({}, ensure_ascii=False)
+
     db.session.add(round_obj)
 
     # 更新主记录
-    record.current_stage = new_stage
-    record.stage_reason = result.get("stage_reason", "")
-    record.customer_profile = json.dumps(result.get("profile", {}), ensure_ascii=False)
-    record.completeness = json.dumps(result.get("completeness", {}), ensure_ascii=False)
-    record.strategy = json.dumps(
-        {
-            "advice": result.get("advice", ""),
-            "pitfall": result.get("pitfall", ""),
-            "question": result.get("question", ""),
-        },
-        ensure_ascii=False,
-    )
-    record.scripts = json.dumps(result.get("scripts", {}), ensure_ascii=False)
+    if deal_summary:
+        record.current_stage = "成交经验"
+        record.customer_profile = json.dumps({}, ensure_ascii=False)
+        record.completeness = json.dumps({}, ensure_ascii=False)
+        record.strategy = json.dumps(
+            {
+                "analysis_mode": "deal_summary",
+                "summary": result.get("summary", ""),
+                "key_factors": result.get("key_factors", []),
+                "effective_techniques": result.get("effective_techniques", []),
+                "decision_triggers": result.get("decision_triggers", []),
+                "repeatable_patterns": result.get("repeatable_patterns", []),
+                "improvements": result.get("improvements", []),
+            },
+            ensure_ascii=False,
+        )
+        record.scripts = json.dumps({}, ensure_ascii=False)
+    else:
+        record.current_stage = new_stage
+        record.stage_reason = result.get("stage_reason", "")
+        record.customer_profile = json.dumps(result.get("profile", {}), ensure_ascii=False)
+        record.completeness = json.dumps(result.get("completeness", {}), ensure_ascii=False)
+        record.strategy = json.dumps(
+            {
+                "advice": result.get("advice", ""),
+                "pitfall": result.get("pitfall", ""),
+                "question": result.get("question", ""),
+            },
+            ensure_ascii=False,
+        )
+        record.scripts = json.dumps(result.get("scripts", {}), ensure_ascii=False)
     record.stage_history = json.dumps(stage_history, ensure_ascii=False)
     record.updated_at = datetime.now(timezone.utc)
 

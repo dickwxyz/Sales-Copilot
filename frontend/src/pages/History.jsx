@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { analysisApi } from '@/api/analysis'
 import { evaluationsApi } from '@/api/evaluations'
-import { Plus, Search, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, User, BarChart3, Star } from 'lucide-react'
+import { Plus, Search, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, User, BarChart3, Star, Award } from 'lucide-react'
 
 const STAGE_COLORS = {
   '认知期': { bg: 'bg-blue-100', text: 'text-blue-800', dot: 'bg-blue-500' },
@@ -166,18 +166,23 @@ function StatItem({ label, avg, dist }) {
 
 /* 单条记录卡片 */
 function RecordCard({ record, onClick }) {
+  const isDealSummary = record.current_stage === '成交经验'
   const stage = STAGE_COLORS[record.current_stage]
   const time = new Date(record.updated_at || record.created_at)
   const profile = record.profile || {}
   const notesParsed = record.notes_parsed || {}
 
   const tags = []
-  const ageLabel = profile.age_group || notesParsed.ageGroup
-  if (ageLabel) tags.push({ label: ageLabel, color: 'text-blue-600 bg-blue-50' })
-  const decisionLabel = profile.decision_maker || notesParsed.decisionMaker
-  if (decisionLabel) tags.push({ label: decisionLabel, color: 'text-purple-600 bg-purple-50' })
-  const typeLabel = profile.edu_type || profile.subject || notesParsed.trainingType
-  if (typeLabel) tags.push({ label: typeLabel, color: 'text-green-600 bg-green-50' })
+  if (!isDealSummary) {
+    const ageLabel = profile.age_group || notesParsed.ageGroup
+    if (ageLabel) tags.push({ label: ageLabel, color: 'text-blue-600 bg-blue-50' })
+    const decisionLabel = profile.decision_maker || notesParsed.decisionMaker
+    if (decisionLabel) tags.push({ label: decisionLabel, color: 'text-purple-600 bg-purple-50' })
+    const typeLabel = profile.edu_type || profile.subject || notesParsed.trainingType
+    if (typeLabel) tags.push({ label: typeLabel, color: 'text-green-600 bg-green-50' })
+  } else {
+    tags.push({ label: '成交经验', color: 'text-amber-600 bg-amber-50' })
+  }
 
   return (
     <div onClick={onClick}
@@ -192,12 +197,17 @@ function RecordCard({ record, onClick }) {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {stage && (
+          {isDealSummary ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+              <Award size={12} className="text-amber-500" />
+              成交经验
+            </span>
+          ) : stage ? (
             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${stage.bg} ${stage.text}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${stage.dot}`} />
               {record.current_stage}
             </span>
-          )}
+          ) : null}
           <span className="text-xs text-gray-400">{time.toLocaleDateString()}</span>
         </div>
       </div>

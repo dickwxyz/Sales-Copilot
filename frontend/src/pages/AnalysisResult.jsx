@@ -6,7 +6,8 @@ import {
   ChevronLeft, RefreshCw, Upload, FileText, X,
   ChevronDown, ChevronUp, Send, Sparkles, User, Target, Brain,
   Lightbulb, MessageSquare, ShieldAlert, Star, ThumbsUp,
-  AlertTriangle, ClipboardList, BookOpen, AlertCircle, CheckCircle, Copy, CopyCheck
+  AlertTriangle, ClipboardList, BookOpen, AlertCircle, CheckCircle, Copy, CopyCheck,
+  TrendingUp, Award, Repeat, Zap, RefreshCcw
 } from 'lucide-react'
 import InjectionWarning from '@/components/InjectionWarning'
 
@@ -125,6 +126,9 @@ export default function AnalysisResult() {
   const rounds = record.rounds || []
   const latestRound = rounds[rounds.length - 1] || {}
 
+  // 判断是否成交经验总结模式：检查最新 round 的 strategy 是否有 analysis_mode=deal_summary
+  const isDealSummary = latestRound.strategy?.analysis_mode === 'deal_summary'
+
   return (
     <div className="space-y-5 pb-20">
       <button onClick={() => navigate('/history')} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition">
@@ -136,11 +140,18 @@ export default function AnalysisResult() {
           {record.customer_name || '未知客户'}
           <span className="text-sm font-normal text-gray-400 ml-2">共{rounds.length}轮对话</span>
         </h2>
-        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold ${stageStyle.bg} ${stageStyle.text}`}>
-          <span className={`w-2 h-2 rounded-full ${stageStyle.dot}`} />
-          {record.current_stage}
-          {stageStyle.label && <span className="opacity-60">· {stageStyle.label}</span>}
-        </div>
+        {isDealSummary ? (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold bg-amber-100 text-amber-800">
+            <Award size={16} className="text-amber-500" />
+            成交经验总结
+          </div>
+        ) : (
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold ${stageStyle.bg} ${stageStyle.text}`}>
+            <span className={`w-2 h-2 rounded-full ${stageStyle.dot}`} />
+            {record.current_stage}
+            {stageStyle.label && <span className="opacity-60">· {stageStyle.label}</span>}
+          </div>
+        )}
       </div>
 
       {latestRound.injection_warning && (
@@ -148,14 +159,23 @@ export default function AnalysisResult() {
       )}
 
       {/* 所有轮次 */}
-      {rounds.map((round, idx) => (
-        <div key={round.id}>
-          <RoundBubble round={round} isLatest={idx === rounds.length - 1} />
-          <AnalysisContent round={round}
-            evalOpen={evalOpen} setEvalOpen={setEvalOpen}
-            onEvalSubmitted={loadRecord} />
-        </div>
-      ))}
+      {rounds.map((round, idx) => {
+        const isSummaryRound = round.strategy?.analysis_mode === 'deal_summary'
+        return (
+          <div key={round.id}>
+            <RoundBubble round={round} isLatest={idx === rounds.length - 1} />
+            {isSummaryRound ? (
+              <DealSummaryContent round={round}
+                evalOpen={evalOpen} setEvalOpen={setEvalOpen}
+                onEvalSubmitted={loadRecord} />
+            ) : (
+              <AnalysisContent round={round}
+                evalOpen={evalOpen} setEvalOpen={setEvalOpen}
+                onEvalSubmitted={loadRecord} />
+            )}
+          </div>
+        )
+      })}
 
       {/* 追问 */}
       <FollowupSection
@@ -252,6 +272,128 @@ function AnalysisContent({ round, evalOpen, setEvalOpen, onEvalSubmitted }) {
           {scripts.efficient && <ScriptCard label="高效型" text={scripts.efficient} copiedId={copiedId} onCopy={copy} />}
         </div>
       </SectionCard>
+
+      <EvaluationCard roundId={round.id}
+        evaluation={evaluation}
+        evalOpen={evalOpen} setEvalOpen={setEvalOpen}
+        onSubmitted={onEvalSubmitted} />
+    </div>
+  )
+}
+
+/* 成交经验总结内容块 */
+function DealSummaryContent({ round, evalOpen, setEvalOpen, onEvalSubmitted }) {
+  const strategy = round.strategy || {}
+  const evaluation = round.evaluations?.[0]
+  const evalKey = round.id
+  const { copiedId, copy } = useCopy()
+
+  const items = [
+    { key: 'summary', icon: Award, title: '成交总结', color: 'from-amber-500 to-orange-500',
+      render: () => (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 text-center border border-amber-100">
+          <p className="text-lg font-bold text-amber-800 leading-relaxed">{strategy.summary || '暂无'}</p>
+        </div>
+      )
+    },
+    { key: 'key_factors', icon: TrendingUp, title: '成交关键因素', color: 'from-green-500 to-emerald-500',
+      render: () => (
+        <div className="space-y-2.5">
+          {(strategy.key_factors || []).length === 0 && <p className="text-sm text-gray-400">暂无数据</p>}
+          {(strategy.key_factors || []).map((item, i) => (
+            <div key={i} className="flex items-start gap-3 p-3.5 rounded-xl bg-green-50 border border-green-100">
+              <span className="w-6 h-6 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+              <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
+            </div>
+          ))}
+        </div>
+      )
+    },
+    { key: 'effective_techniques', icon: Zap, title: '有效话术与策略', color: 'from-blue-500 to-cyan-500',
+      render: () => (
+        <div className="space-y-3">
+          {(strategy.effective_techniques || []).length === 0 && <p className="text-sm text-gray-400">暂无数据</p>}
+          {(strategy.effective_techniques || []).map((item, i) => (
+            <div key={i} className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100">
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm">
+                  {i + 1}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
+                  <button onClick={() => copy(item, `tech_${i}`)}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 mt-1.5 transition">
+                    {copiedId === `tech_${i}` ? <CopyCheck size={11} className="text-green-500" /> : <Copy size={11} />}
+                    {copiedId === `tech_${i}` ? '√已复制' : '复制'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    },
+    { key: 'decision_triggers', icon: Target, title: '客户决策触发点', color: 'from-purple-500 to-pink-500',
+      render: () => (
+        <div className="grid grid-cols-1 gap-3">
+          {(strategy.decision_triggers || []).length === 0 && <p className="text-sm text-gray-400">暂无数据</p>}
+          {(strategy.decision_triggers || []).map((item, i) => (
+            <div key={i} className="flex items-center gap-3 p-3.5 rounded-xl bg-purple-50 border border-purple-100">
+              <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
+              <p className="text-sm text-gray-700">{item}</p>
+            </div>
+          ))}
+        </div>
+      )
+    },
+    { key: 'repeatable_patterns', icon: Repeat, title: '可复用的策略模式', color: 'from-teal-500 to-emerald-500',
+      render: () => (
+        <div className="grid grid-cols-1 gap-3">
+          {(strategy.repeatable_patterns || []).length === 0 && <p className="text-sm text-gray-400">暂无数据</p>}
+          {(strategy.repeatable_patterns || []).map((item, i) => (
+            <div key={i} className="flex items-start gap-3 p-3.5 rounded-xl border border-teal-100 bg-teal-50">
+              <RefreshCcw size={15} className="text-teal-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-700 leading-relaxed">{item}</p>
+            </div>
+          ))}
+        </div>
+      )
+    },
+    { key: 'improvements', icon: Lightbulb, title: '改进空间', color: 'from-rose-500 to-pink-500',
+      render: () => {
+        const items = strategy.improvements || []
+        return (
+          <div className="space-y-2.5">
+            {items.length === 0 && <p className="text-sm text-gray-400 italic">本次成交过程无明显改进空间</p>}
+            {items.map((item, i) => (
+              <div key={i} className="flex items-start gap-2.5 p-3.5 rounded-xl bg-rose-50 border border-rose-100">
+                <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-700">{item}</p>
+              </div>
+            ))}
+          </div>
+        )
+      }
+    },
+  ]
+
+  return (
+    <div className="space-y-4 mb-8 ml-3 border-l-2 border-amber-100 pl-5 relative">
+      <div className="absolute -left-[1.45rem] top-0 w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+        AI
+      </div>
+
+      {items.map((section) => (
+        <section key={section.key} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className={`bg-gradient-to-r ${section.color} px-5 py-3 flex items-center gap-2`}>
+            <section.icon size={15} className="text-white opacity-80" />
+            <h3 className="text-sm font-semibold text-white">{section.title}</h3>
+          </div>
+          <div className="p-5">
+            {section.render()}
+          </div>
+        </section>
+      ))}
 
       <EvaluationCard roundId={round.id}
         evaluation={evaluation}
